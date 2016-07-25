@@ -1,0 +1,81 @@
+#!/usr/bin/lua
+
+local modes={
+  ["3840x2160@30Hz"]= {
+	["clock-frequency"] = 266640000,
+        hactive=3840, ["hfront-porch"]=8,["hsync-len"]=144, ["hback-porch"]=8,
+	vactive=2160, ["vfront-porch"]=54,["vsync-len"]=5, ["vback-porch"]=3
+  },
+  ["1920x1080@60Hz"]= {
+	["clock-frequency"] = 148500000,
+        hactive=1920, ["hfront-porch"]=88,["hsync-len"]=44, ["hback-porch"]=148,
+	vactive=1080, ["vfront-porch"]=4,["vsync-len"]=5, ["vback-porch"]=36
+  }
+}
+--[[
+clock: 266.640
+hactive: 3840, hfront-porch 8, hback-porch 8, hsync-len 144
+vactive 2160, vfront-porch 54, vsync-len 5, vback-porch 3
+fdtput  /boot/exynos5422-odroidxu3.dtb /dp-controller@145B0000/display-timings/timing@1
+  1920x1080 (0x80) 148.500MHz +HSync +VSync +preferred
+        h: width  1920 start 2008 end 2052 total 2200 skew    0 clock  67.50KHz
+        v: height 1080 start 1084 end 1089 total 1125           clock  60.00Hz
+  3840x2160 (0x81) 533.280MHz +HSync -VSync *current +preferred
+        h: width  3840 start 3848 end 3992 total 4000 skew    0 clock 133.32KHz
+        v: height 2160 start 2214 end 2219 total 2222           clock  60.00Hz
+  3840x2160 (0x82) 266.640MHz +HSync -VSync
+        h: width  3840 start 3848 end 3992 total 4000 skew    0 clock  66.66KHz
+        v: height 2160 start 2214 end 2219 total 2222           clock  30.00Hz
+--]]
+
+local base="/dp-controller@145B0000"
+local timing="/dp-controller@145B0000/display-timings/timing@1"
+local dtb="/boot/exynos5422-odroidxu3.dtb"
+
+local commands={}
+
+local function fdtput(file,...)
+	local args={...}
+	local command="fdtput "..file.." "..table.concat(args," ")
+	print(command)
+	os.execute(command)
+end
+
+function commands.disable(arg)
+	table.remove(arg,1)
+	fdtput(dtb,"-t","s",base,"status","disabled")
+end
+
+function commands.enable(arg)
+	table.remove(arg,1)
+	fdtput(dtb,"-t","s",base,"status","okay")
+end
+
+function commands.mode(arg)
+	table.remove(arg,1)
+	local mode=arg[1]
+	table.remove(arg,1)
+	print("mode:",mode)
+	if modes[mode] == nil then
+		print("I do not know how to set",mode)
+	os.exit(1)
+		return nil
+	end
+	local theMode=modes[mode]
+	for k,v in pairs(theMode) do
+		fdtput(dtb,timing,k,v)
+	end
+end
+
+local function main(arg)
+	while #arg > 0 do
+		if commands[arg[1]] then
+		commands[arg[1]](arg)
+		else
+			print("I do not know how to handle",arg[1])
+			os.exit(1)
+		end
+	end
+end
+
+main(arg)
