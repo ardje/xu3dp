@@ -31,26 +31,51 @@ fdtput  /boot/exynos5422-odroidxu3.dtb /dp-controller@145B0000/display-timings/t
 local base="/dp-controller@145B0000"
 local timing="/dp-controller@145B0000/display-timings/timing@1"
 local dtb="/boot/exynos5422-odroidxu3.dtb"
+local verbose=false
+local doit=false
 
 local commands={}
+local help={}
 
 local function fdtput(file,...)
 	local args={...}
 	local command="fdtput "..file.." "..table.concat(args," ")
-	print(command)
-	os.execute(command)
+	if verbose then print(command) end
+	if doit then os.execute(command) end
+end
+help.verbose={"show commands to run"}
+function commands.verbose(arg)
+	table.remove(arg,1)
+	verbose=true
 end
 
+help.doit={"perform the actual commands needed"}
+function commands.doit(arg)
+	table.remove(arg,1)
+	doit=true
+end
+
+help.disable={"disable eDP in dtb"}
 function commands.disable(arg)
 	table.remove(arg,1)
 	fdtput(dtb,"-t","s",base,"status","disabled")
 end
 
+help.disable={"enable eDP in dtb"}
 function commands.enable(arg)
 	table.remove(arg,1)
 	fdtput(dtb,"-t","s",base,"status","okay")
 end
 
+help.list={"list all modes"}
+function commands.list(arg)
+	table.remove(arg,1)
+	for k,v in pairs(modes) do
+		print(k,modes[k].hactive,modes[k].vactive)
+	end
+end
+
+help.mode={"<mode> set all parameters according to <mode>"}
 function commands.mode(arg)
 	table.remove(arg,1)
 	local mode=arg[1]
@@ -66,14 +91,25 @@ function commands.mode(arg)
 		fdtput(dtb,timing,k,v)
 	end
 end
+help.help={"list all commands"}
+function commands.help(arg)
+	table.remove(arg,1)
+	for k,v in pairs(help) do
+		print(k,help[k][1])
+	end	
+end
 
 local function main(arg)
-	while #arg > 0 do
-		if commands[arg[1]] then
-		commands[arg[1]](arg)
-		else
-			print("I do not know how to handle",arg[1])
-			os.exit(1)
+	if #arg == 0 then
+		commands.help(arg)
+	else
+		while #arg > 0 do
+			if commands[arg[1]] then
+			commands[arg[1]](arg)
+			else
+				print("I do not know how to handle",arg[1])
+				os.exit(1)
+			end
 		end
 	end
 end
