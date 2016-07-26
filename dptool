@@ -6,6 +6,11 @@ local modes={
         hactive=3840, ["hfront-porch"]=8,["hsync-len"]=144, ["hback-porch"]=8,
 	vactive=2160, ["vfront-porch"]=54,["vsync-len"]=5, ["vback-porch"]=3
   },
+  ["2560x1440@30Hz"] = {
+	["clock-frequency"] = 266640000,
+        hactive=2560, ["hfront-porch"]=8,["hsync-len"]=144, ["hback-porch"]=8,
+	vactive=1440, ["vfront-porch"]=54,["vsync-len"]=5, ["vback-porch"]=3
+  },
   ["1920x1080@60Hz"]= {
 	["clock-frequency"] = 148500000,
         hactive=1920, ["hfront-porch"]=88,["hsync-len"]=44, ["hback-porch"]=148,
@@ -26,12 +31,15 @@ fdtput  /boot/exynos5422-odroidxu3.dtb /dp-controller@145B0000/display-timings/t
   3840x2160 (0x82) 266.640MHz +HSync -VSync
         h: width  3840 start 3848 end 3992 total 4000 skew    0 clock  66.66KHz
         v: height 2160 start 2214 end 2219 total 2222           clock  30.00Hz
+  2560x1440 (0x86) 266.640MHz +HSync -VSync
+        h: width  2560 start 3848 end 3992 total 4000 skew    0 clock  66.66KHz
+        v: height 1440 start 2214 end 2219 total 2222           clock  30.00Hz
 --]]
 
 local base="/dp-controller@145B0000"
 local timing="/dp-controller@145B0000/display-timings/timing@1"
 local dtb="/boot/exynos5422-odroidxu3.dtb"
-local verbose=false
+local show=false
 local doit=false
 
 local commands={}
@@ -40,17 +48,17 @@ local help={}
 local function fdtput(file,...)
 	local args={...}
 	local command="fdtput "..file.." "..table.concat(args," ")
-	if verbose then print(command) end
+	if show then print(command) end
 	if doit then os.execute(command) end
 end
-help.verbose={"show commands to run"}
-function commands.verbose(arg)
+help.show={"show needed commands to run"}
+function commands.show(arg)
 	table.remove(arg,1)
-	verbose=true
+	show=true
 end
 
-help.doit={"perform the actual commands needed"}
-function commands.doit(arg)
+help.set={"perform the actual commands needed (you might need sudo)"}
+function commands.set(arg)
 	table.remove(arg,1)
 	doit=true
 end
@@ -61,7 +69,7 @@ function commands.disable(arg)
 	fdtput(dtb,"-t","s",base,"status","disabled")
 end
 
-help.disable={"enable eDP in dtb"}
+help.enable={"enable eDP in dtb"}
 function commands.enable(arg)
 	table.remove(arg,1)
 	fdtput(dtb,"-t","s",base,"status","okay")
@@ -80,6 +88,10 @@ function commands.mode(arg)
 	table.remove(arg,1)
 	local mode=arg[1]
 	table.remove(arg,1)
+	if not show and not doit then
+		print("If you want me to do something you have to at least use set or show")
+		return commands.help(arg)
+	end
 	print("mode:",mode)
 	if modes[mode] == nil then
 		print("I do not know how to set",mode)
